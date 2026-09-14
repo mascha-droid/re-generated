@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>re:generated</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
+    <style>
+        * {
+            font-family: Helvetica, Arial, sans-serif;
+            font-weight: normal;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-weight: normal;
+            background-color: #fff;
+            color: #000;
+            display: flex;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        main {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            width: 250px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            padding: 1rem 0.8rem;
+            background-color: #fff;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+        #canvas-container {
+            flex: 1;
+            background-color: #fff;
+        }
+        .control-group {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            border: none;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: normal;
+            font-size: 0.8rem;
+            color: #000;
+        }
+        input[type="text"], input[type="range"], textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type="text"], textarea {
+            background-color: #f5f5f5;
+            border: 1px solid #999;
+            color: #000;
+            padding: 0.4rem;
+            border-radius: 0;
+            font-size: 0.85rem;
+            font-family: Helvetica, Arial, sans-serif;
+            font-weight: normal;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+            height: 14px;
+        }
+        /* Track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #ccc;
+            border-radius: 0;
+        }
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            background: #ccc;
+            border-radius: 0;
+        }
+        /* Thumb */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 12px;
+            width: 12px;
+            background: #000;
+            border-radius: 0;
+            border: none;
+            margin-top: -4px;
+        }
+        input[type="range"]::-moz-range-thumb {
+            height: 12px;
+            width: 12px;
+            background: #000;
+            border-radius: 0;
+            border: none;
+        }
+        input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #000000;
+            border-radius: 0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            margin-bottom: 0.15rem;
+            font-family: Helvetica, Arial, sans-serif;
+            font-weight: normal;
+            color: #000;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3rem;
+        }
+        .play-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0;
+            color: #000;
+            line-height: 1;
+        }
+        .play-btn:hover {
+            opacity: 0.6;
+        }
+        .play-btn.playing {
+            background: none;
+            border: none;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .blinking-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.1em;
+            background-color: #000;
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink 1s infinite;
+        }
+        /* Info Button & Modal Styling */
+        #info-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: none;
+            color: #000000;
+            border: none;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 24px;
+            font-weight: normal;
+            cursor: pointer;
+            z-index: 100;
+            padding: 0;
+            line-height: 1;
+        }
+        #info-btn:hover {
+            opacity: 0.6;
+        }
+        #info-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        #info-modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background-color: #000000;
+            color: #fff;
+            padding: 30px;
+            width: 90%;
+            max-width: 480px;
+            box-sizing: border-box;
+            border-radius: 0;
+            position: relative;
+            font-family: Helvetica, Arial, sans-serif;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div id="controls">
+            <div class="control-group">
+                <label for="font-file" style="display:block; width:100%; box-sizing:border-box; padding:8px 12px; background:#000000; color:#fff; border:none; border-radius:0; cursor:pointer; font-size:0.85rem; text-align:center;">Load Font (TTF / OTF)</label>
+                <input type="file" id="font-file" accept=".ttf,.otf" style="display:none;" />
+                <div id="font-status" style="font-size:0.75rem;color:#333;margin-top:8px;">Current font: <br><span id="font-name" style="word-break:break-all; font-weight:normal;">No font loaded</span></div>
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="size-slider" style="margin:0;">Size</label>
+                    <button class="play-btn" data-target="size-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>60</span><span>200</span></div>
+                <input type="range" id="size-slider" min="60" max="200" value="140">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="track-slider" style="margin:0;">Tracking</label>
+                    <button class="play-btn" data-target="track-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>-50</span><span>100</span></div>
+                <input type="range" id="track-slider" min="-50" max="100" value="0">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="line-slider" style="margin:0;">Line Height</label>
+                    <button class="play-btn" data-target="line-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>0.8</span><span>2.0</span></div>
+                <input type="range" id="line-slider" min="0.8" max="2.0" step="0.1" value="1.2">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="conn-slider" style="margin:0;">Connection Range</label>
+                    <button class="play-btn" data-target="conn-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>0</span><span>100</span></div>
+                <input type="range" id="conn-slider" min="0" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="dens-slider" style="margin:0;">Thread Density</label>
+                    <button class="play-btn" data-target="dens-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>0</span><span>100</span></div>
+                <input type="range" id="dens-slider" min="0" max="100" value="30">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="flow-slider" style="margin:0;">Curve Gravity</label>
+                    <button class="play-btn" data-target="flow-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>up</span><span>down</span></div>
+                <input type="range" id="flow-slider" min="-100" max="100" value="0">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="nois-slider" style="margin:0;">Distortion</label>
+                    <button class="play-btn" data-target="nois-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>0</span><span>100</span></div>
+                <input type="range" id="nois-slider" min="0" max="100" value="10">
+            </div>
+            <div class="control-group">
+                <div class="slider-header">
+                    <label for="brch-slider" style="margin:0;">Line Thickness</label>
+                    <button class="play-btn" data-target="brch-slider">▶</button>
+                </div>
+                <div class="slider-label"><span>0</span><span>100</span></div>
+                <input type="range" id="brch-slider" min="0" max="100" value="20">
+            </div>
+            <div class="control-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="continuous-checkbox" checked />
+                    <span>Continuous Threads (V2 Mode)</span>
+                </label>
+            </div>
+            <hr style="border:none; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="control-group">
+                <label for="font-export-name">Export Name</label>
+                <input type="text" id="font-export-name" value="" style="border-radius: 0; padding: 6px 12px;">
+            </div>
+            <div class="control-group">
+                <button id="export-btn" style="width:100%; padding:8px 12px; background:#000000; color:#fff; border:none; cursor:pointer; font-weight:normal; border-radius:0; font-size:0.85rem;">
+                    Export Font as OTF
+                </button>
+            </div>
+        </div>
+        <div id="canvas-container" style="position:relative;">
+            <div id="drop-prompt" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: Helvetica, Arial, sans-serif; font-size: 24px; color: #000; pointer-events: none; user-select: none; z-index: 10; display: flex; align-items: center;">
+                <span>drop or open your font</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Info Button & Popup Modal -->
+    <button id="info-btn" title="Informationen">?</button>
+    <div id="info-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+            <div id="info-modal-body">
+                <p style="line-height: 1.5; font-family: Helvetica, Arial, sans-serif; font-size: 0.95rem; margin: 0; padding-right: 15px;">
+                    Created by Mascha Rein during the course Shapeshifters by Pierre Pané-Farré at HAW Hamburg 2026
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="sketch_v2.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const playBtns = document.querySelectorAll('.play-btn');
+            const animatingSliders = new Map();
+
+            playBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    if (animatingSliders.has(targetId)) {
+                        animatingSliders.delete(targetId);
+                        btn.textContent = '▶';
+                        btn.classList.remove('playing');
+                    } else {
+                        const slider = document.getElementById(targetId);
+                        const min = parseFloat(slider.min);
+                        const max = parseFloat(slider.max);
+                        const range = max - min;
+                        
+                        // Deutlich schnellere Geschwindigkeit (ca. 2 Sekunden für einen Loop)
+                        const speed = range / (2 * 60); 
+
+                        animatingSliders.set(targetId, { 
+                            direction: 1, 
+                            speed: speed 
+                        });
+                        btn.textContent = '⏸';
+                        btn.classList.add('playing');
+                    }
+                });
+            });
+
+            function animateSliders() {
+                animatingSliders.forEach((state, targetId) => {
+                    const slider = document.getElementById(targetId);
+                    if (!slider) return;
+
+                    let val = parseFloat(slider.value);
+                    const min = parseFloat(slider.min);
+                    const max = parseFloat(slider.max);
+                    
+                    val += state.speed * state.direction;
+                    
+                    if (val >= max) {
+                        val = max;
+                        state.direction = -1;
+                    } else if (val <= min) {
+                        val = min;
+                        state.direction = 1;
+                    }
+
+                    slider.value = val;
+                    // Trigger slider event so sketch_v2.js catches it
+                    slider.dispatchEvent(new Event('input'));
+                });
+                requestAnimationFrame(animateSliders);
+            }
+            
+            requestAnimationFrame(animateSliders);
+
+            // Modal Controls
+            const infoBtn = document.getElementById('info-btn');
+            const infoModal = document.getElementById('info-modal');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+
+            infoBtn.addEventListener('click', () => {
+                infoModal.classList.add('active');
+            });
+
+            modalCloseBtn.addEventListener('click', () => {
+                infoModal.classList.remove('active');
+            });
+
+            infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) {
+                    infoModal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
